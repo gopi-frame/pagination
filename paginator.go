@@ -1,13 +1,5 @@
 package pagination
 
-import (
-	"github.com/gopi-frame/contract/pagination"
-)
-
-var _ pagination.Paginator[any] = (*Paginator[any])(nil)
-var _ pagination.Paginator[any] = (*ArrayPaginator[any])(nil)
-var _ pagination.Paginator[any] = (*LazyPaginator[any])(nil)
-
 // Paginator is the basic paginator, it implements [IPaginator] interface
 //
 // Example:
