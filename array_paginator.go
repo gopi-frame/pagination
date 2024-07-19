@@ -1,52 +1,60 @@
 package pagination
 
-// ArrayPaginator is a paginator based on an array, it extends from [Paginator]
-//
-// Example:
-//   allItems := []int{}
-//   for i := 0; i < 100; i++ {
-//       allItems = append(allItems, i)
-//   }
-//
-//   pageSize := 10
-//   page := 1
-//
-//   paginator := Array[int](allItems, pageSize, page)
-type ArrayPaginator[T any] struct {
-	*Paginator[T]
+import (
+	"encoding/json"
+)
 
-	all []T
+type ArrayPaginator[T any] struct {
+	Paginator[T]
+
+	data []T
 }
 
-// NewArrayPaginator creates an [ArrayPaginator] instance
-func NewArrayPaginator[T any](all []T, pageSize, page int) *ArrayPaginator[T] {
-	paginator := new(ArrayPaginator[T])
-	paginator.Paginator = new(Paginator[T])
-	paginator.all = all
-	if page < 0 {
-		page = 1
-	}
-	if pageSize < 0 {
+func NewArray[T any](data []T, page int, pageSize int) *ArrayPaginator[T] {
+	page = max(1, page)
+	if pageSize <= 0 {
 		pageSize = 10
 	}
-	paginator.total = int64(len(all))
-	paginator.currentPage = page
-	paginator.pageSize = pageSize
-	var values []T
-	startIndex := int64((page - 1) * pageSize)
-	endIndex := startIndex + int64(pageSize)
-	if startIndex > paginator.total {
-		values = make([]T, 0)
-	} else if endIndex > paginator.total {
-		values = all[startIndex:]
+	var paginator Paginator[T]
+	total := len(data)
+	if s := (page - 1) * pageSize; s >= total {
+		paginator = *New[T]([]T{}, int64(total), page, pageSize)
+	} else if e := page * pageSize; e >= total {
+		paginator = *New[T](data[s:], int64(total), page, pageSize)
 	} else {
-		values = all[startIndex:endIndex]
+		paginator = *New[T](data[s:e], int64(total), page, pageSize)
 	}
-	paginator.Paginator = NewPaginator(int64(len(all)), values, pageSize, page)
-	return paginator
+	return &ArrayPaginator[T]{
+		Paginator: paginator,
+		data:      data,
+	}
 }
 
-// All returns all items
-func (p *ArrayPaginator[T]) All() []T {
-	return p.all
+func (p *ArrayPaginator[T]) Next() bool {
+	if p.Paginator.page >= p.Paginator.lastPage {
+		return false
+	}
+	total := p.total
+	page := p.Paginator.page + 1
+	pageSize := p.pageSize
+	data := p.data
+	var paginator Paginator[T]
+	if s := (page - 1) * pageSize; int64(s) >= total {
+		paginator = *New[T]([]T{}, total, page, pageSize)
+	} else if e := page * pageSize; int64(e) >= total {
+		paginator = *New[T](data[s:], total, page, pageSize)
+	} else {
+		paginator = *New[T](data[s:e], total, page, pageSize)
+	}
+	p.Paginator = paginator
+	return true
+}
+
+func (p *ArrayPaginator[T]) UnmarshalJSON(data []byte) error {
+	var paginator Paginator[T]
+	if err := json.Unmarshal(data, &paginator); err != nil {
+		return err
+	}
+	p.Paginator = paginator
+	return nil
 }
